@@ -33,6 +33,8 @@ M.start = function(bufnr, repl_config)
     return instance
   end
 
+  M.remove_leading_whitespace(bufnr)
+
   local stdin = vim.loop.new_pipe(false)
   local stdout = vim.loop.new_pipe(false)
   local stderr = vim.loop.new_pipe(false)
@@ -105,5 +107,32 @@ M.stop = function(bufnr)
     log.fmt_debug("Can't stop REPL because it's not started for buffer %d", bufnr)
   end
 end
+
+---@param bufnr number
+M.remove_leading_whitespace = function(bufnr)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  if #lines == 0 then
+    return
+  end
+
+  local leading_whitespace = string.match(lines[1], "^%s*")
+  if not leading_whitespace then
+    return
+  end
+
+  local leading_whitespace_len = string.len(leading_whitespace)
+
+  for i, line in ipairs(lines) do
+    local line_whitespace = string.match(line, "^%s*")
+    if not line_whitespace or string.len(line_whitespace) < leading_whitespace_len then
+      log.fmt_warn("Line %d has less leading whitespace than the first line, skipping removal", i)
+    else
+      lines[i] = string.sub(line, leading_whitespace_len + 1)
+    end
+  end
+
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+end
+
 
 return M
